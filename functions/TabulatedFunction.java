@@ -1,14 +1,13 @@
 package functions;
 
 public interface TabulatedFunction {
-
-    int getPointsCount();
-
     double getLeftDomainBorder();
 
     double getRightDomainBorder();
 
     double getFunctionValue(double x);
+
+    int getPointsCount();
 
     FunctionPoint getPoint(int index);
 

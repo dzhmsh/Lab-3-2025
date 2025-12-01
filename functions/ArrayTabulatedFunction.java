@@ -4,8 +4,9 @@ package functions;
 //чтобы точки в нём были всегда упорядочены по значению координаты x.
 
 public class ArrayTabulatedFunction implements TabulatedFunction {
-    private FunctionPoint arrayOfPoints[];
+    private FunctionPoint[] arrayOfPoints;
     private int pointCount; // это ваще что?
+    private static final double EPSILON = 1e-9;
 
     // создаёт объект табулированной функции
     // по заданным левой и правой границе области определения
@@ -16,8 +17,7 @@ public class ArrayTabulatedFunction implements TabulatedFunction {
      * равна правой, а также если предлагаемое количество точек меньше двух.
      */
     public ArrayTabulatedFunction(double leftX, double rightX, int pointsCount) {
-
-        if (leftX >= rightX) {
+        if (leftX >= rightX || Math.abs(leftX - rightX) < EPSILON) {
             throw new IllegalArgumentException("\nThe left boundary is bigger than the right\n");
         }
 
@@ -35,7 +35,7 @@ public class ArrayTabulatedFunction implements TabulatedFunction {
 
     // вместо количества точек получает значения функции в виде массива
     public ArrayTabulatedFunction(double leftX, double rightX, double[] values) {
-        if (leftX >= rightX) {
+        if (leftX >= rightX || Math.abs(leftX - rightX) < EPSILON) {
             throw new IllegalArgumentException("\nThe left boundary is bigger than the right\n");
         }
 
@@ -73,14 +73,15 @@ public class ArrayTabulatedFunction implements TabulatedFunction {
 
     // должен возвращать значение функции в точке x
     public double getFunctionValue(double x) {
-        if ((x > getRightDomainBorder()) || (x < getLeftDomainBorder()))
+        if ((x > getRightDomainBorder() && Math.abs(x - getRightDomainBorder()) > EPSILON) ||
+                (x < getLeftDomainBorder() && Math.abs(x - getLeftDomainBorder()) > EPSILON))
             return Double.NaN;
 
-        if (x == arrayOfPoints[0].getX())
+        if (Math.abs(x - arrayOfPoints[0].getX()) < EPSILON)
             return arrayOfPoints[0].getY();
 
         for (int i = 1; i < pointCount; i++) {
-            if (arrayOfPoints[i].getX() == x)
+            if (Math.abs(arrayOfPoints[i].getX() - x) < EPSILON)
                 return arrayOfPoints[i].getY();
 
             if (arrayOfPoints[i].getX() > x) {
@@ -123,14 +124,17 @@ public class ArrayTabulatedFunction implements TabulatedFunction {
         double newX = point.getX();
 
         // 2. Проверка нарушения упорядоченности (слева и справа)
-        // Если индекс > 0, проверяем, что новый X больше предыдущего
-        // Если индекс < последнего, проверяем, что новый X меньше следующего
-        if ((index > 0 && newX <= arrayOfPoints[index - 1].getX()) ||
-                (index < pointCount - 1 && newX >= arrayOfPoints[index + 1].getX())) {
+        // Используем EPSILON для сравнения
+        if (index > 0 && (newX < arrayOfPoints[index - 1].getX()
+                || Math.abs(newX - arrayOfPoints[index - 1].getX()) < EPSILON)) {
+            throw new InappropriateFunctionPointException();
+        }
+        if (index < pointCount - 1 && (newX > arrayOfPoints[index + 1].getX()
+                || Math.abs(newX - arrayOfPoints[index + 1].getX()) < EPSILON)) {
             throw new InappropriateFunctionPointException();
         }
 
-        // 3. Создаем копию и присваиваем (исправлено имя переменной)
+        // 3. Создаем копию и присваиваем
         arrayOfPoints[index] = new FunctionPoint(point);
     }
 
@@ -156,21 +160,20 @@ public class ArrayTabulatedFunction implements TabulatedFunction {
         if (index >= this.pointCount || index < 0) {
             throw new FunctionPointIndexOutOfBoundsException();
         }
-        if (index < 0 || index >= pointCount)
-            throw new InappropriateFunctionPointException();
 
         if (pointCount == 1) {
             arrayOfPoints[index].setX(x);
             return;
         }
 
-        if (index == 0 && arrayOfPoints[1].getX() > x) {
+        // Проверка границ с EPSILON
+        double leftBound = (index == 0) ? Double.NEGATIVE_INFINITY : arrayOfPoints[index - 1].getX();
+        double rightBound = (index == pointCount - 1) ? Double.POSITIVE_INFINITY : arrayOfPoints[index + 1].getX();
+
+        if (x > leftBound + EPSILON && x < rightBound - EPSILON) {
             arrayOfPoints[index].setX(x);
-        } else if (index == pointCount - 1 && arrayOfPoints[pointCount - 2].getX() < x) {
-            arrayOfPoints[index].setX(x);
-        } else if (index > 0 && index < pointCount - 1 &&
-                arrayOfPoints[index - 1].getX() < x && arrayOfPoints[index + 1].getX() > x) {
-            arrayOfPoints[index].setX(x);
+        } else {
+            throw new InappropriateFunctionPointException();
         }
     }
 
@@ -191,10 +194,6 @@ public class ArrayTabulatedFunction implements TabulatedFunction {
             throw new FunctionPointIndexOutOfBoundsException();
         }
 
-        if (index < 0 || index >= pointCount) {
-            return;
-        }
-
         if (pointCount - index - 1 > 0) {
             System.arraycopy(arrayOfPoints, index + 1, arrayOfPoints, index, pointCount - index - 1);
         }
@@ -205,15 +204,18 @@ public class ArrayTabulatedFunction implements TabulatedFunction {
 
     // добавляем точку
     public void addPoint(FunctionPoint point) throws InappropriateFunctionPointException {
+        // Проверка на совпадение X с EPSILON
+        for (int i = 0; i < pointCount; i++) {
+            if (Math.abs(arrayOfPoints[i].getX() - point.getX()) < EPSILON) {
+                throw new InappropriateFunctionPointException("Point with this X already exists");
+            }
+        }
+
         FunctionPoint newPoint = new FunctionPoint(point);
 
         int insertIndex = 0;
         while (insertIndex < pointCount && arrayOfPoints[insertIndex].getX() < newPoint.getX()) {
             insertIndex++;
-        }
-
-        if (insertIndex < pointCount && arrayOfPoints[insertIndex].getX() == newPoint.getX()) {
-            throw new InappropriateFunctionPointException();
         }
 
         if (pointCount == arrayOfPoints.length) {

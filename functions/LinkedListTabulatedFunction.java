@@ -8,11 +8,11 @@ public class LinkedListTabulatedFunction implements TabulatedFunction {
         public FunctionNode prev; // Ссылка на предыдущий элемент
         public FunctionNode next; // Ссылка на следующий элемент
 
-        // Конструктор по умолчанию
+        // Конструктор по умолчанию (для фиктивной головы)
         public FunctionNode() {
             this.val = null;
-            this.prev = null;
-            this.next = null;
+            this.prev = this;
+            this.next = this;
         }
 
         // Конструктор с данными
@@ -23,8 +23,9 @@ public class LinkedListTabulatedFunction implements TabulatedFunction {
         }
     }
 
-    private FunctionNode head; // Ссылка на "голову" списка (первый элемент)
+    private FunctionNode head; // Ссылка на фиктивную "голову" списка
     private int count; // Количество элементов в списке
+    private static final double EPSILON = 1e-9;
 
     // -------------------------------------------------------------------------
     // КОНСТРУКТОРЫ
@@ -35,19 +36,21 @@ public class LinkedListTabulatedFunction implements TabulatedFunction {
      * Значения Y по умолчанию равны 0.
      */
     public LinkedListTabulatedFunction(double leftX, double rightX, int pointsCount) {
-        if (leftX >= rightX) {
+        if (leftX >= rightX || Math.abs(leftX - rightX) < EPSILON) {
             throw new IllegalArgumentException("The left boundary is bigger than the right");
         }
         if (pointsCount < 2) {
             throw new IllegalArgumentException("Point number must be bigger than 2");
         }
 
+        // Инициализация фиктивной головы
+        head = new FunctionNode();
+        count = 0;
+
         double step = (rightX - leftX) / (pointsCount - 1);
         for (int i = 0; i < pointsCount; i++) {
-            // Создаем точку и добавляем её в конец списка
             double x = leftX + step * i;
-            FunctionNode node = addNodeToTail();
-            node.val = new FunctionPoint(x, 0);
+            addNodeToTail().val = new FunctionPoint(x, 0);
         }
     }
 
@@ -56,18 +59,21 @@ public class LinkedListTabulatedFunction implements TabulatedFunction {
      * Y.
      */
     public LinkedListTabulatedFunction(double leftX, double rightX, double[] values) {
-        if (leftX >= rightX) {
+        if (leftX >= rightX || Math.abs(leftX - rightX) < EPSILON) {
             throw new IllegalArgumentException("The left boundary is bigger than the right");
         }
         if (values.length < 2) {
             throw new IllegalArgumentException("Point number must be bigger than 2");
         }
 
+        // Инициализация фиктивной головы
+        head = new FunctionNode();
+        count = 0;
+
         double step = (rightX - leftX) / (values.length - 1);
         for (int i = 0; i < values.length; i++) {
             double x = leftX + step * i;
-            FunctionNode node = addNodeToTail();
-            node.val = new FunctionPoint(x, values[i]);
+            addNodeToTail().val = new FunctionPoint(x, values[i]);
         }
     }
 
@@ -87,15 +93,16 @@ public class LinkedListTabulatedFunction implements TabulatedFunction {
 
         FunctionNode current;
 
-        // Оптимизация: если индекс в первой половине списка — идем с начала, иначе с
-        // конца
+        // Оптимизация поиска
         if (index < count / 2) {
-            current = head;
+            // Идем от начала (head.next - это первый реальный элемент)
+            current = head.next;
             for (int i = 0; i < index; i++) {
                 current = current.next;
             }
         } else {
-            current = head.prev; // Последний элемент
+            // Идем с конца (head.prev - это последний элемент)
+            current = head.prev;
             for (int i = count - 1; i > index; i--) {
                 current = current.prev;
             }
@@ -108,50 +115,34 @@ public class LinkedListTabulatedFunction implements TabulatedFunction {
      */
     public FunctionNode addNodeToTail() {
         FunctionNode newNode = new FunctionNode();
+        FunctionNode last = head.prev;
 
-        if (head == null) {
-            // Если список пуст, создаем первый элемент, замкнутый сам на себя
-            head = newNode;
-            head.next = head;
-            head.prev = head;
-        } else {
-            // Вставляем между последним (head.prev) и первым (head)
-            FunctionNode last = head.prev;
-            newNode.prev = last;
-            newNode.next = head;
-            last.next = newNode;
-            head.prev = newNode;
-        }
+        // Вставка между last и head
+        newNode.prev = last;
+        newNode.next = head;
+        last.next = newNode;
+        head.prev = newNode;
+
         count++;
         return newNode;
     }
 
     /*
      * Добавляет новый элемент в указанную позицию списка.
-     * Индекс 0 — вставка перед головой (смещение головы).
+     * Индекс 0 — вставка перед первым значащим элементом.
      */
     public FunctionNode addNodeByIndex(int index) {
-        // Если вставка в конец (или список пуст) — используем addNodeToTail
-        if (index == count) {
-            return addNodeToTail();
-        }
+        // Находим узел, перед которым будем вставлять
+        // Если index == count, вставляем перед head (то есть в хвост)
+        FunctionNode nextNode = (index == count) ? head : getNodeByIndex(index);
 
-        // Находим узел, который сейчас стоит на этом месте
-        FunctionNode currentNode = getNodeByIndex(index);
         FunctionNode newNode = new FunctionNode();
-
-        // Вставка перед currentNode
-        FunctionNode prevNode = currentNode.prev;
+        FunctionNode prevNode = nextNode.prev;
 
         prevNode.next = newNode;
         newNode.prev = prevNode;
-        newNode.next = currentNode;
-        currentNode.prev = newNode;
-
-        // Если вставили на место 0, обновляем head
-        if (index == 0) {
-            head = newNode;
-        }
+        newNode.next = nextNode;
+        nextNode.prev = newNode;
 
         count++;
         return newNode;
@@ -169,26 +160,18 @@ public class LinkedListTabulatedFunction implements TabulatedFunction {
         FunctionNode nodeToDelete = getNodeByIndex(index);
         FunctionPoint data = nodeToDelete.val;
 
-        // Если это единственный элемент в списке
-        if (count == 1) {
-            head = null;
-            count = 0;
-            return data;
-        }
-
         FunctionNode prevNode = nodeToDelete.prev;
         FunctionNode nextNode = nodeToDelete.next;
 
         prevNode.next = nextNode;
         nextNode.prev = prevNode;
 
-        // Если удаляем голову, смещаем указатель head
-        if (index == 0) {
-            head = nextNode;
-        }
+        // Обнуляем ссылки удаляемого узла
+        nodeToDelete.prev = null;
+        nodeToDelete.next = null;
 
         count--;
-        return data; // Возвращаем данные удаленного узла
+        return data;
     }
 
     // -------------------------------------------------------------------------
@@ -196,15 +179,17 @@ public class LinkedListTabulatedFunction implements TabulatedFunction {
     // -------------------------------------------------------------------------
 
     public double getLeftDomainBorder() {
-        if (head == null)
+        if (count == 0)
             throw new IllegalStateException("List is empty");
-        return head.val.getX();
+        // Первый элемент - следующий за фиктивной головой
+        return head.next.val.getX();
     }
 
     public double getRightDomainBorder() {
-        if (head == null)
+        if (count == 0)
             throw new IllegalStateException("List is empty");
-        return head.prev.val.getX(); // head.prev — это хвост списка
+        // Последний элемент - предыдущий перед фиктивной головой
+        return head.prev.val.getX();
     }
 
     public int getPointsCount() {
@@ -218,41 +203,57 @@ public class LinkedListTabulatedFunction implements TabulatedFunction {
     public double getFunctionValue(double x) {
         if (count == 0)
             return Double.NaN;
-        if (x < getLeftDomainBorder() || x > getRightDomainBorder()) {
+
+        double left = getLeftDomainBorder();
+        double right = getRightDomainBorder();
+
+        if (x < left - EPSILON || x > right + EPSILON) {
             return Double.NaN;
         }
 
-        // Проход по списку для поиска интервала
-        FunctionNode current = head;
-        // Проверяем все точки
-        for (int i = 0; i < count; i++) {
-            if (current.val.getX() == x) {
+        // Если x совпадает с границами (с учетом epsilon)
+        if (Math.abs(x - left) < EPSILON)
+            return head.next.val.getY();
+        if (Math.abs(x - right) < EPSILON)
+            return head.prev.val.getY();
+
+        // Проход по списку
+        FunctionNode current = head.next;
+        // head.prev - это последний элемент, нам не нужно проверять интервал после него
+        while (current != head.prev) {
+            double currentX = current.val.getX();
+            double nextX = current.next.val.getX();
+
+            if (Math.abs(currentX - x) < EPSILON)
                 return current.val.getY();
-            }
-            // Если x попал в интервал между current и current.next
-            // (при условии, что мы не на последнем элементе)
-            if (i < count - 1 && current.val.getX() < x && current.next.val.getX() > x) {
-                return linearInterpolation(x,
-                        current.val.getX(), current.val.getY(),
-                        current.next.val.getX(), current.next.val.getY());
+
+            if (currentX < x && nextX > x) {
+                return linearInterpolation(x, currentX, current.val.getY(), nextX, current.next.val.getY());
             }
             current = current.next;
         }
+
+        // Проверка последнего узла (на случай точного совпадения, хотя выше уже
+        // проверили)
+        if (Math.abs(head.prev.val.getX() - x) < EPSILON)
+            return head.prev.val.getY();
+
         return Double.NaN;
     }
 
     public FunctionPoint getPoint(int index) {
-        return new FunctionPoint(getNodeByIndex(index).val); // Возвращаем копию
+        return new FunctionPoint(getNodeByIndex(index).val);
     }
 
     public void setPoint(int index, FunctionPoint point) throws InappropriateFunctionPointException {
         FunctionNode node = getNodeByIndex(index);
 
         // Проверка на нарушение упорядоченности
-        double prevX = (index == 0) ? Double.NEGATIVE_INFINITY : node.prev.val.getX();
-        double nextX = (index == count - 1) ? Double.POSITIVE_INFINITY : node.next.val.getX();
+        double prevX = (node.prev == head) ? Double.NEGATIVE_INFINITY : node.prev.val.getX();
+        double nextX = (node.next == head) ? Double.POSITIVE_INFINITY : node.next.val.getX();
+        double newX = point.getX();
 
-        if (point.getX() <= prevX || point.getX() >= nextX) {
+        if (newX <= prevX + EPSILON || newX >= nextX - EPSILON) {
             throw new InappropriateFunctionPointException();
         }
 
@@ -270,10 +271,10 @@ public class LinkedListTabulatedFunction implements TabulatedFunction {
     public void setPointX(int index, double x) throws InappropriateFunctionPointException {
         FunctionNode node = getNodeByIndex(index);
 
-        double prevX = (index == 0) ? Double.NEGATIVE_INFINITY : node.prev.val.getX();
-        double nextX = (index == count - 1) ? Double.POSITIVE_INFINITY : node.next.val.getX();
+        double prevX = (node.prev == head) ? Double.NEGATIVE_INFINITY : node.prev.val.getX();
+        double nextX = (node.next == head) ? Double.POSITIVE_INFINITY : node.next.val.getX();
 
-        if (x <= prevX || x >= nextX) {
+        if (x <= prevX + EPSILON || x >= nextX - EPSILON) {
             throw new InappropriateFunctionPointException();
         }
         node.val.setX(x);
@@ -291,44 +292,30 @@ public class LinkedListTabulatedFunction implements TabulatedFunction {
     }
 
     public void addPoint(FunctionPoint point) throws InappropriateFunctionPointException {
-        // Если список пуст (теоретически невозможно при count >= 2, но для
-        // безопасности)
-        if (head == null) {
-            FunctionNode node = addNodeToTail();
-            node.val = new FunctionPoint(point);
+        if (count == 0) {
+            FunctionNode newNode = addNodeToTail();
+            newNode.val = new FunctionPoint(point);
             return;
         }
 
-        FunctionNode current = head;
+        FunctionNode current = head.next;
         int index = 0;
 
         // Ищем позицию для вставки
-        while (index < count && current.val.getX() < point.getX()) {
+        while (current != head && current.val.getX() < point.getX()) {
             current = current.next;
             index++;
         }
 
-        // Если нашли точку с таким же X
-        if (index < count && current.val.getX() == point.getX()) {
-            // Но если мы вышли из цикла потому что прошли весь список (index == count),
-            // то current указывает на head (из-за цикличности), нужно проверить последний
-            // элемент
-            if (index == count) {
-                // вставка в самый конец
-            } else {
-                throw new InappropriateFunctionPointException();
-            }
+        // Проверка на дубликат X (current указывает на элемент >= point.getX() или на
+        // head)
+        // Если мы не на head, проверяем совпадение
+        if (current != head && Math.abs(current.val.getX() - point.getX()) < EPSILON) {
+            throw new InappropriateFunctionPointException("Point with this X already exists");
         }
 
-        // Проверка дубликата X при вставке в конец (нужна отдельная, т.к. цикл while
-        // может закончиться)
-        if (index == count && head.prev.val.getX() == point.getX()) {
-            throw new InappropriateFunctionPointException();
-        }
-
-        // Вставляем новую точку по индексу
+        // Вставляем новую точку по индексу (перед current)
         FunctionNode newNode = addNodeByIndex(index);
         newNode.val = new FunctionPoint(point);
     }
-
 }

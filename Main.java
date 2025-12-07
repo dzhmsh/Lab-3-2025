@@ -2,149 +2,124 @@ import functions.*;
 
 public class Main {
     public static void main(String[] args) {
-        // Создаем объект через интерфейс.
-        // Для проверки ArrayTabulatedFunction просто раскомментируйте вторую строчку.
+
+        // 1. Создание функции
+        System.out.println("1. Создаем функцию и заполняем базовыми значениями (y = 2x)");
         TabulatedFunction fun = new LinkedListTabulatedFunction(0, 20, 5);
-        // TabulatedFunction fun = new ArrayTabulatedFunction(0, 20, 5);
 
-        System.out.println("Function created using " + fun.getClass().getSimpleName());
-
-        // пытаемся заполнить y значениями 2*x
         for (int i = 0; i < fun.getPointsCount(); i++) {
             fun.setPointY(i, 2 * fun.getPointX(i));
         }
 
-        System.out.println("Number of points: " + fun.getPointsCount());
-
-        // Вывод точек
-        for (int i = 0; i < fun.getPointsCount(); i++) {
-            System.out.print("P(" + fun.getPointX(i) + ") = ");
-            System.out.println(fun.getPointY(i));
-        }
-
-        System.out.println("x belongs to [" + fun.getLeftDomainBorder() + "; " + fun.getRightDomainBorder() + "]");
-
-        // Проверка интерполяции
-        System.out.println("\n--- Interpolation Check ---");
-        for (double i = 0.0; i <= 1.1; i += 0.5) {
-            System.out.println("x = " + i + " y = " + fun.getFunctionValue(i));
-        }
-
+        // Показываем, что получилось
         printFunction(fun);
+        System.out.println("Интервал X: от " + fun.getLeftDomainBorder() + " до " + fun.getRightDomainBorder());
 
-        // ----------------------------------------------------
-        // ПРОВЕРКА setPoint
-        // ----------------------------------------------------
-        System.out.println("\n--- Testing setPoint ---");
+        // 2. Проверка вычислений
+        System.out.println("\n2. Проверяем вычисление значений (интерполяцию):");
+        // Проходимся по значениям x с шагом 0.5, чтобы попасть между точками
+        for (double x = 0.0; x <= 1.1; x += 0.5) {
+            System.out.printf("При x = %.1f, y = %.4f%n", x, fun.getFunctionValue(x));
+        }
+
+        // 3. Изменение существующей точки
+        System.out.println("\n3. Тестируем изменение точки (setPoint):");
         FunctionPoint newPoint = new FunctionPoint(1, 2.005);
 
         try {
-            // Пытаемся вставить точку (1, 2.005) на позицию 1.
-            // В исходной функции: 0->0, 5->10. Точка с X=1 допустима между 0 и 5.
             fun.setPoint(1, newPoint);
-            System.out.println("Point [1] set successfully.");
-        } catch (InappropriateFunctionPointException e) {
-            System.err.println("Error setting point: " + e.getMessage());
-        } catch (FunctionPointIndexOutOfBoundsException e) {
-            System.err.println("Index out of bounds: " + e.getMessage());
-        }
-        printFunction(fun);
-
-        // Попытка вставить некорректную точку (нарушение порядка X)
-        System.out.println("Attempting to set invalid point (x=-10 at index 1)...");
-        try {
-            fun.setPoint(1, new FunctionPoint(-10, 5)); // Должно упасть, т.к. слева x=0
-        } catch (InappropriateFunctionPointException e) {
-            System.out.println("CAUGHT EXPECTED EXCEPTION: InappropriateFunctionPointException (Order violation)");
+            System.out.println("Точка с индексом 1 успешно заменена на (1, 2.005).");
         } catch (Exception e) {
-            System.err.println("Wrong exception caught: " + e);
-        }
-
-        // ----------------------------------------------------
-        // ПРОВЕРКА setPointX
-        // ----------------------------------------------------
-        System.out.println("\n--- Testing setPointX ---");
-
-        // Корректное изменение
-        try {
-            fun.setPointX(1, 4); // X=4 допустим (между 0 и 5)
-            System.out.println("SetPointX point [1] to x=4: Success");
-        } catch (InappropriateFunctionPointException e) {
-            System.err.println("Unexpected error: " + e.getMessage());
+            System.err.println("Ошибка при замене точки: " + e.getMessage());
         }
         printFunction(fun);
 
-        // Некорректное изменение (нарушение порядка)
-        System.out.println("Attempting SetPointX [1] to 600 (should fail)...");
+        // Попытка сломать порядок сортировки
+        System.out.println("Пробуем вставить некорректную точку (x=-10 на позицию 1)...");
+        try {
+            fun.setPoint(1, new FunctionPoint(-10, 5));
+            System.err.println("Ошибка! Программа пропустила некорректную точку.");
+        } catch (InappropriateFunctionPointException e) {
+            System.out.println("Все верно, поймали ошибку: нарушение порядка координат.");
+        }
+
+        // 4. Изменение только координаты X
+        System.out.println("\n4. Тестируем изменение X (setPointX):");
+        try {
+            fun.setPointX(1, 4); // Меняем x=1 на x=4 (это допустимо, так как порядок сохраняется)
+            System.out.println("Координата X точки [1] успешно изменена на 4.");
+        } catch (Exception e) {
+            System.err.println("Ошибка изменения X: " + e.getMessage());
+        }
+        printFunction(fun);
+
+        // Попытка задать X, который нарушит сортировку
+        System.out.println("Пробуем задать x=600 для точки [1] (должно быть запрещено)...");
         try {
             fun.setPointX(1, 600);
+            System.err.println("Ошибка! Некорректный X был принят.");
         } catch (InappropriateFunctionPointException e) {
-            System.out.println("CAUGHT EXPECTED EXCEPTION: InappropriateFunctionPointException (Order violation)");
+            System.out.println("Система сработала верно, изменение отклонено.");
         }
 
-        // ----------------------------------------------------
-        // ПРОВЕРКА addPoint
-        // ----------------------------------------------------
-        System.out.println("\n--- Testing addPoint ---");
-
-        FunctionPoint addPt = new FunctionPoint(15.5, 31);
+        // 5. Добавление новой точки
+        System.out.println("\n5. Добавляем новую точку (addPoint):");
         try {
-            fun.addPoint(addPt);
-            System.out.println("Added point (15.5, 31)");
-        } catch (InappropriateFunctionPointException e) {
-            System.err.println("Error adding point: " + e.getMessage());
+            fun.addPoint(new FunctionPoint(15.5, 31));
+            System.out.println("Точка (15.5, 31) добавлена.");
+        } catch (Exception e) {
+            System.err.println("Не удалось добавить точку: " + e.getMessage());
         }
         printFunction(fun);
 
-        // Попытка добавить существующий X
-        System.out.println("Attempting to add duplicate X=15.5...");
+        // Проверка на дубликаты
+        System.out.println("Пробуем добавить точку с уже существующим X (15.5)...");
         try {
             fun.addPoint(new FunctionPoint(15.5, 100));
         } catch (InappropriateFunctionPointException e) {
-            System.out.println("CAUGHT EXPECTED EXCEPTION: InappropriateFunctionPointException (Duplicate X)");
+            System.out.println("Верно, дубликаты X запрещены.");
         }
 
-        // ----------------------------------------------------
-        // ПРОВЕРКА deletePoint
-        // ----------------------------------------------------
-        System.out.println("\n--- Testing deletePoint ---");
+        // 6. Удаление точек
+        System.out.println("\n6. Удаляем точки (deletePoint):");
 
-        // Удаление существующей точки
+        // Удаляем корректную точку
         fun.deletePoint(1);
-        System.out.println("Deleted point at index 1");
+        System.out.println("Точка с индексом 1 удалена.");
         printFunction(fun);
 
-        // Попытка удалить точку с неверным индексом
-        System.out.println("Attempting delete at index 100...");
+        // Пытаемся удалить несуществующую
+        System.out.println("Пробуем удалить точку с индексом 100...");
         try {
             fun.deletePoint(100);
         } catch (FunctionPointIndexOutOfBoundsException e) {
-            System.out.println("CAUGHT EXPECTED EXCEPTION: FunctionPointIndexOutOfBoundsException");
+            System.out.println("Поймали ошибку выхода за границы массива (как и ожидалось).");
         }
 
-        // Попытка удалить точки до количества < 3 (если требуется такая проверка)
-        // Сейчас у нас 5 точек (было 5, заменили, добавили 1, удалили 1 -> итого 5)
-        // Удалим лишние, чтобы проверить исключение при малом количестве
+        // 7. Тест ограничений списка
+        System.out.println("\n7. Тест на минимальное количество точек:");
+        System.out.println("Сейчас точек: " + fun.getPointsCount());
+        System.out.println("Удаляем точки по одной, пока не сработает ограничение...");
+
         try {
-            while (fun.getPointsCount() > 2) {
+            while (fun.getPointsCount() > 0) {
                 fun.deletePoint(0);
+                System.out.println("Удалили точку [0]. Осталось: " + fun.getPointsCount());
             }
-            System.out.println("Points remaining: " + fun.getPointsCount());
-            System.out.println("Attempting to delete one more point...");
-            fun.deletePoint(0);
         } catch (IllegalStateException e) {
-            System.out.println("CAUGHT EXPECTED EXCEPTION: " + e.getMessage());
+            System.out.println("Стоп. Сработала защита: " + e.getMessage());
         }
+
+        System.out.println("\nТесты завершены.");
     }
 
-    // Метод теперь принимает интерфейс, чтобы работать и с Array, и с LinkedList
-    // реализациями
+    // Простой метод для вывода списка точек
     static private void printFunction(TabulatedFunction func) {
-        System.out.print("Function state: [ ");
+        System.out.print("Текущие точки: ");
         for (int i = 0; i < func.getPointsCount(); i++) {
-            System.out.print("(" + func.getPointX(i) + ", " + func.getPointY(i) + ") ");
+            System.out.print("(" + func.getPointX(i) + "; " + func.getPointY(i) + ") ");
         }
-        System.out.println("]");
+        System.out.println();
     }
 
 }

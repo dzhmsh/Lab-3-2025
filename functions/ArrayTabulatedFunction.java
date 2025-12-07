@@ -1,21 +1,17 @@
 package functions;
 
-//При этом разумно организовать работу с массивом так,
-//чтобы точки в нём были всегда упорядочены по значению координаты x.
-
 public class ArrayTabulatedFunction implements TabulatedFunction {
-    private FunctionPoint[] arrayOfPoints;
-    private int pointCount; // это ваще что?
-    private static final double EPSILON = 1e-9;
 
-    // создаёт объект табулированной функции
-    // по заданным левой и правой границе области определения
-    // и количеству точек для табулирования
+    private FunctionPoint[] arrayOfPoints;
+    private int pointCount; // счетчик реальных точек
+    private static final double EPSILON = 1e-9;
 
     /*
      * IllegalArgumentException, если левая граница области определения больше или
      * равна правой, а также если предлагаемое количество точек меньше двух.
      */
+
+    // первый конструктор
     public ArrayTabulatedFunction(double leftX, double rightX, int pointsCount) {
         if (leftX >= rightX || Math.abs(leftX - rightX) < EPSILON) {
             throw new IllegalArgumentException("\nThe left boundary is bigger than the right\n");
@@ -33,7 +29,8 @@ public class ArrayTabulatedFunction implements TabulatedFunction {
         }
     }
 
-    // вместо количества точек получает значения функции в виде массива
+    // конструктор - вместо количества точек получает значения функции в виде
+    // массива
     public ArrayTabulatedFunction(double leftX, double rightX, double[] values) {
         if (leftX >= rightX || Math.abs(leftX - rightX) < EPSILON) {
             throw new IllegalArgumentException("\nThe left boundary is bigger than the right\n");
@@ -57,7 +54,7 @@ public class ArrayTabulatedFunction implements TabulatedFunction {
         return arrayOfPoints[0].getX();
     }
 
-    // должен возвращать значение правой границы
+    // значение правой границы
     public double getRightDomainBorder() {
         return arrayOfPoints[pointCount - 1].getX();
     }
@@ -116,15 +113,15 @@ public class ArrayTabulatedFunction implements TabulatedFunction {
 
     // должен заменять указанную на копию переданной точки
     public void setPoint(int index, FunctionPoint point) throws InappropriateFunctionPointException {
-        // 1. Проверка индекса (одна и корректная)
+        // проверка индекса
         if (index < 0 || index >= pointCount) {
             throw new FunctionPointIndexOutOfBoundsException();
         }
 
         double newX = point.getX();
 
-        // 2. Проверка нарушения упорядоченности (слева и справа)
-        // Используем EPSILON для сравнения
+        // проверка нарушения упорядоченности (слева и справа)
+        // используем EPSILON для сравнения
         if (index > 0 && (newX < arrayOfPoints[index - 1].getX()
                 || Math.abs(newX - arrayOfPoints[index - 1].getX()) < EPSILON)) {
             throw new InappropriateFunctionPointException();
@@ -134,7 +131,7 @@ public class ArrayTabulatedFunction implements TabulatedFunction {
             throw new InappropriateFunctionPointException();
         }
 
-        // 3. Создаем копию и присваиваем
+        // создаем копию и присваиваем
         arrayOfPoints[index] = new FunctionPoint(point);
     }
 

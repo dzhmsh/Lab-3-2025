@@ -3,7 +3,7 @@ package functions;
 public class FunctionPoint {
     private double x, y;
 
-    // getter'y & setter'y
+    // getters & setters
 
     public FunctionPoint(double x, double y) {
         this.x = x;
@@ -16,7 +16,7 @@ public class FunctionPoint {
         this.y = point.y;
     }
 
-    // – создаёт точку с координатами (0; 0).
+    // создаёт точку с координатами (0; 0).
     public FunctionPoint() {
         this.x = 0;
         this.y = 0;
